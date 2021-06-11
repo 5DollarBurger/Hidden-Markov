@@ -131,7 +131,7 @@ class HMMDiscrete:
         :param X:
         :return:
         """
-        # likelihoodList = []
+        logLikelihoodList = []
         for x in X:
             T = len(x)
             scale = np.zeros(T)
@@ -143,9 +143,9 @@ class HMMDiscrete:
                 alpha_t_prime = alpha[t-1].dot(self.A) * self.B[:, x[t]]
                 scale[t] = alpha_t_prime.sum()
                 alpha[t] = alpha_t_prime / scale[t]
-            # likelihood = alpha[-1].sum()
-            # likelihoodList.append(likelihood)
-        return sum(np.log(scale))
+            logLikelihood = np.log(scale).sum()
+            logLikelihoodList.append(logLikelihood)
+        return sum(logLikelihoodList)
 
     def predict(self, x):
         """
@@ -155,19 +155,19 @@ class HMMDiscrete:
         :return:
         """
         T = len(x)
-        delta = np.zeros((T, self.M))
-        psi = np.zeros((T, self.M))
-        delta[0] = self.pi * self.B[:, x[0]]
+        delta = np.zeros(shape=(T, self.M))
+        psi = np.zeros(shape=(T, self.M))
+        delta[0] = np.log(self.pi) + np.log(self.B[:, x[0]])
         for t in range(1, T):
             for j in range(self.M):
-                delta[t, j] = np.max(delta[t - 1] * self.A[:, j]) * self.B[j, x[t]]
-                psi[t, j] = np.argmax(delta[t - 1] * self.A[:, j])
+                delta[t, j] = np.max(delta[t-1] + np.log(self.A[:, j])) + np.log(self.B[j, x[t]])
+                psi[t, j] = np.argmax(delta[t-1] + np.log(self.A[:, j]))
 
         # backtrack
         states = np.zeros(T, dtype=np.int32)
-        states[T - 1] = np.argmax(delta[T - 1])
-        for t in range(T - 2, -1, -1):
-            states[t] = psi[t + 1, states[t + 1]]
+        states[T-1] = np.argmax(delta[T-1])
+        for t in range(T-2, -1, -1):
+            states[t] = psi[t+1, states[t+1]]
         return states
 
 
@@ -182,8 +182,8 @@ if __name__ == "__main__":
     ins = HMMDiscrete(M=2)
     costList = ins.fit(X=X)
 
-    plt.plot(costList)
-    plt.show()
+    # plt.plot(costList)
+    # plt.show()
 
     print("A:", ins.A)
     print("B:", ins.B)
@@ -191,9 +191,9 @@ if __name__ == "__main__":
     print("LL:", ins.getLogLikelihood(X=X))
 
     # try viterbi
-    # ins.pi = np.array([0.5, 0.5])
-    # ins.A = np.array([[0.1, 0.9], [0.8, 0.2]])
-    # ins.B = np.array([[0.6, 0.4], [0.3, 0.7]])
-    # print("Best state sequence for: \n", np.array(X[0]))
-    # print(ins.predict(x=X[0]))
+    ins.pi = np.array([0.5, 0.5])
+    ins.A = np.array([[0.1, 0.9], [0.8, 0.2]])
+    ins.B = np.array([[0.6, 0.4], [0.3, 0.7]])
+    print("Best state sequence for: \n", np.array(X[0]))
+    print(ins.predict(x=X[0]))
 
