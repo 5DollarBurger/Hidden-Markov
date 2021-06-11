@@ -1,0 +1,164 @@
+import numpy as np
+
+
+class HMMDiscrete:
+    def __init__(self, M):
+        """
+        This class trains a hidden Markov model with coefficients pi, A, B
+        using expectation maximization based on past observed sequences using
+        the Baum-Welch algorithm. Most likely sequences of underlying hidden
+        states are predicted from the trained model given an observed sequence
+        using the Viterbi algorithm.
+        :param M: Number of hidden states
+        """
+        np.random.seed(seed=123)
+        self.M = M
+
+    def _getRandomNormalized(self, shape):
+        arr = np.random.random(shape)
+        return arr / arr.sum(axis=1, keepdims=True)
+
+    def _setInitialParams(self, K):
+        self.pi = np.ones(self.M) / self.M
+        self.A = self._getRandomNormalized(shape=(self.M, self.M))
+        self.B = self._getRandomNormalized(shape=(self.M, K))
+
+    def _setParams(self, X, max_iter=30):
+        # training data characteristics
+        K = max(max(seq) for seq in X) + 1
+        N = len(X)
+
+        # initial HMM parameters
+        self._setInitialParams(K=K)
+
+        costList = []
+        for it in range(max_iter):
+            alphaList = []
+            betaList = []
+            P = np.zeros(N)
+            for n in range(N):
+                x = X[n]
+                T = len(x)
+                alpha = np.zeros((T, self.M))
+                alpha[0] = self.pi * self.B[:, x[0]]
+                for t in range(1, T):
+                    tmp1 = alpha[t - 1].dot(self.A) * self.B[:, x[t]]
+                    alpha[t] = tmp1
+                P[n] = alpha[-1].sum()
+                alphaList.append(alpha)
+
+                beta = np.zeros((T, self.M))
+                beta[-1] = 1
+                for t in range(T - 2, -1, -1):
+                    beta[t] = self.A.dot(self.B[:, x[t + 1]] * beta[t + 1])
+                betaList.append(beta)
+
+            assert (np.all(P > 0))
+            cost = np.sum(np.log(P))
+            costList.append(cost)
+
+            # now re-estimate pi, A, B
+            gen = ((alphaList[n][0] * betaList[n][0]) / P[n] for n in range(N))
+            self.pi = sum(gen) / N
+
+            den1 = np.zeros((self.M, 1))
+            den2 = np.zeros((self.M, 1))
+            a_num = 0
+            b_num = 0
+            for n in range(N):
+                x = X[n]
+                T = len(x)
+                den1 += (alphaList[n][:-1] * betaList[n][:-1]).sum(axis=0, keepdims=True).T / P[n]
+                den2 += (alphaList[n] * betaList[n]).sum(axis=0, keepdims=True).T / P[n]
+
+                # numerator for A
+                a_num_n = np.zeros((self.M, self.M))
+                for i in range(self.M):
+                    for j in range(self.M):
+                        for t in range(T - 1):
+                            a_num_n[i, j] += alphaList[n][t, i] * self.A[i, j] * self.B[j, x[t + 1]] * betaList[n][t + 1, j]
+                a_num += a_num_n / P[n]
+
+                # numerator for B
+                b_num_n2 = np.zeros((self.M, K))
+                for i in range(self.M):
+                    for t in range(T):
+                        b_num_n2[i, x[t]] += alphaList[n][t, i] * betaList[n][t, i]
+                b_num += b_num_n2 / P[n]
+            self.A = a_num / den1
+            self.B = b_num / den2
+
+        return costList
+
+    def fit(self, X):
+        costList = self._setParams(X)
+        return costList
+
+    def getLogLikelihood(self, X):
+        """
+        Calculates log likelihood of observation sequence given the model
+        parameters using the forward algorithm
+        :param X:
+        :return:
+        """
+        likelihoodList = []
+        for x in X:
+            T = len(x)
+            alpha = np.zeros(shape=(T, self.M))
+            alpha[0] = self.pi * self.B[:, x[0]]
+            for t in range(1, T):
+                alpha[t] = alpha[t - 1].dot(self.A) * self.B[:, x[t]]
+            likelihood = alpha[-1].sum()
+            likelihoodList.append(likelihood)
+        return sum(np.log(likelihoodList))
+
+    def predict(self, x):
+        """
+        Predicts the most likely state sequence given an observed sequence x
+        using the Viterbi algorithm.
+        :param x: Observed sequence
+        :return:
+        """
+        T = len(x)
+        delta = np.zeros((T, self.M))
+        psi = np.zeros((T, self.M))
+        delta[0] = self.pi * self.B[:, x[0]]
+        for t in range(1, T):
+            for j in range(self.M):
+                delta[t, j] = np.max(delta[t - 1] * self.A[:, j]) * self.B[j, x[t]]
+                psi[t, j] = np.argmax(delta[t - 1] * self.A[:, j])
+
+        # backtrack
+        states = np.zeros(T, dtype=np.int32)
+        states[T - 1] = np.argmax(delta[T - 1])
+        for t in range(T - 2, -1, -1):
+            states[t] = psi[t + 1, states[t + 1]]
+        return states
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    X = []
+    for line in open("data/coin_data.txt"):
+        # 1 for H, 0 for T
+        seq = [1 if e == 'H' else 0 for e in line.rstrip()]
+        X.append(seq)
+    ins = HMMDiscrete(M=2)
+    costList = ins.fit(X=X)
+
+    # plt.plot(costList)
+    # plt.show()
+
+    print("A:", ins.A)
+    print("B:", ins.B)
+    print("pi:", ins.pi)
+    print("LL:", ins.getLogLikelihood(X=X))
+
+    # try viterbi
+    # ins.pi = np.array([0.5, 0.5])
+    # ins.A = np.array([[0.1, 0.9], [0.8, 0.2]])
+    # ins.B = np.array([[0.6, 0.4], [0.3, 0.7]])
+    # print("Best state sequence for: \n", np.array(X[0]))
+    # print(ins.predict(x=X[0]))
+
