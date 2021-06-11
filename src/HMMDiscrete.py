@@ -1,8 +1,9 @@
 import numpy as np
+import warnings
 
 
 class HMMDiscrete:
-    def __init__(self, M):
+    def __init__(self, M=None, pi=[], A=[], B=[]):
         """
         This class trains a hidden Markov model with coefficients pi, A, B
         using expectation maximization based on past observed sequences using
@@ -12,7 +13,17 @@ class HMMDiscrete:
         :param M: Number of hidden states
         """
         np.random.seed(seed=123)
-        self.M = M
+        self.pi = pi
+        self.A = A
+        self.B = B
+        # check consistency
+        assert len(pi) == len(A), "Number of states in pi and A do not match"
+        assert len(pi) == len(B), "Number of states in pi and B do not match"
+
+        if len(pi) == 0:
+            self.M = M
+        else:
+            self.M = len(pi)
 
     def _getRandomNormalized(self, shape):
         arr = np.random.random(shape)
@@ -32,6 +43,7 @@ class HMMDiscrete:
         self._setInitialParams(K=K)
 
         costList = []
+        costDelta = np.inf
         for it in range(max_iter):
             alphaList = []
             betaList = []
@@ -39,7 +51,7 @@ class HMMDiscrete:
             for n in range(N):
                 x = X[n]
                 T = len(x)
-                alpha = np.zeros((T, self.M))
+                alpha = np.zeros(shape=(T, self.M))
                 alpha[0] = self.pi * self.B[:, x[0]]
                 for t in range(1, T):
                     tmp1 = alpha[t - 1].dot(self.A) * self.B[:, x[t]]
@@ -47,7 +59,7 @@ class HMMDiscrete:
                 P[n] = alpha[-1].sum()
                 alphaList.append(alpha)
 
-                beta = np.zeros((T, self.M))
+                beta = np.zeros(shape=(T, self.M))
                 beta[-1] = 1
                 for t in range(T - 2, -1, -1):
                     beta[t] = self.A.dot(self.B[:, x[t + 1]] * beta[t + 1])
@@ -55,14 +67,16 @@ class HMMDiscrete:
 
             assert (np.all(P > 0))
             cost = np.sum(np.log(P))
+            if it > 0:
+                costDelta = abs(cost - costList[-1])
             costList.append(cost)
 
             # now re-estimate pi, A, B
             gen = ((alphaList[n][0] * betaList[n][0]) / P[n] for n in range(N))
             self.pi = sum(gen) / N
 
-            den1 = np.zeros((self.M, 1))
-            den2 = np.zeros((self.M, 1))
+            den1 = np.zeros(shape=(self.M, 1))
+            den2 = np.zeros(shape=(self.M, 1))
             a_num = 0
             b_num = 0
             for n in range(N):
@@ -72,7 +86,7 @@ class HMMDiscrete:
                 den2 += (alphaList[n] * betaList[n]).sum(axis=0, keepdims=True).T / P[n]
 
                 # numerator for A
-                a_num_n = np.zeros((self.M, self.M))
+                a_num_n = np.zeros(shape=(self.M, self.M))
                 for i in range(self.M):
                     for j in range(self.M):
                         for t in range(T - 1):
@@ -80,13 +94,19 @@ class HMMDiscrete:
                 a_num += a_num_n / P[n]
 
                 # numerator for B
-                b_num_n2 = np.zeros((self.M, K))
+                b_num_n = np.zeros(shape=(self.M, K))
                 for i in range(self.M):
                     for t in range(T):
-                        b_num_n2[i, x[t]] += alphaList[n][t, i] * betaList[n][t, i]
-                b_num += b_num_n2 / P[n]
+                        b_num_n[i, x[t]] += alphaList[n][t, i] * betaList[n][t, i]
+                b_num += b_num_n / P[n]
             self.A = a_num / den1
             self.B = b_num / den2
+
+            if it > 1 and costDelta < 0.01 * abs(costList[-2] - costList[-3]):
+                break
+
+            if it == max_iter - 1:
+                warnings.warn("Maximum iterations reached.")
 
         return costList
 
@@ -147,8 +167,8 @@ if __name__ == "__main__":
     ins = HMMDiscrete(M=2)
     costList = ins.fit(X=X)
 
-    # plt.plot(costList)
-    # plt.show()
+    plt.plot(costList)
+    plt.show()
 
     print("A:", ins.A)
     print("B:", ins.B)
