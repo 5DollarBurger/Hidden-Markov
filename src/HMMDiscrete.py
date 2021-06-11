@@ -47,58 +47,68 @@ class HMMDiscrete:
         for it in range(max_iter):
             alphaList = []
             betaList = []
-            P = np.zeros(N)
+            scaleList = []
+            logP = np.zeros(N)
             for n in range(N):
                 x = X[n]
                 T = len(x)
+                scale = np.zeros(T)
                 alpha = np.zeros(shape=(T, self.M))
                 alpha[0] = self.pi * self.B[:, x[0]]
+                # perform scaling
+                scale[0] = alpha[0].sum()
+                alpha[0] /= scale[0]
                 for t in range(1, T):
-                    tmp1 = alpha[t - 1].dot(self.A) * self.B[:, x[t]]
-                    alpha[t] = tmp1
-                P[n] = alpha[-1].sum()
+                    alpha_t_prime = alpha[t-1].dot(self.A) * self.B[:, x[t]]
+                    scale[t] = alpha_t_prime.sum()
+                    alpha[t] = alpha_t_prime / scale[t]
+                logP[n] = np.log(scale).sum()
                 alphaList.append(alpha)
+                scaleList.append(scale)
 
                 beta = np.zeros(shape=(T, self.M))
                 beta[-1] = 1
-                for t in range(T - 2, -1, -1):
-                    beta[t] = self.A.dot(self.B[:, x[t + 1]] * beta[t + 1])
+                for t in range(T-2, -1, -1):
+                    beta[t] = self.A.dot(self.B[:, x[t + 1]] * beta[t + 1]) / scale[t+1]
                 betaList.append(beta)
 
-            assert (np.all(P > 0))
-            cost = np.sum(np.log(P))
+            # assert (np.all(P > 0))
+            cost = np.sum(logP)
             if it > 0:
                 costDelta = abs(cost - costList[-1])
             costList.append(cost)
 
             # now re-estimate pi, A, B
-            gen = ((alphaList[n][0] * betaList[n][0]) / P[n] for n in range(N))
+            gen = ((alphaList[n][0] * betaList[n][0]) for n in range(N))
             self.pi = sum(gen) / N
 
             den1 = np.zeros(shape=(self.M, 1))
             den2 = np.zeros(shape=(self.M, 1))
-            a_num = 0
-            b_num = 0
+            a_num = np.zeros(shape=(self.M, self.M))
+            b_num = np.zeros(shape=(self.M, K))
             for n in range(N):
                 x = X[n]
                 T = len(x)
-                den1 += (alphaList[n][:-1] * betaList[n][:-1]).sum(axis=0, keepdims=True).T / P[n]
-                den2 += (alphaList[n] * betaList[n]).sum(axis=0, keepdims=True).T / P[n]
+                den1 += (alphaList[n][:-1] * betaList[n][:-1]).sum(axis=0, keepdims=True).T
+                den2 += (alphaList[n] * betaList[n]).sum(axis=0, keepdims=True).T
 
                 # numerator for A
-                a_num_n = np.zeros(shape=(self.M, self.M))
+                # a_num_n = np.zeros(shape=(self.M, self.M))
                 for i in range(self.M):
                     for j in range(self.M):
-                        for t in range(T - 1):
-                            a_num_n[i, j] += alphaList[n][t, i] * self.A[i, j] * self.B[j, x[t + 1]] * betaList[n][t + 1, j]
-                a_num += a_num_n / P[n]
+                        for t in range(T-1):
+                            a_num[i, j] += alphaList[n][t, i] * self.A[i, j] * self.B[j, x[t+1]] * betaList[n][t+1, j] \
+                                           / scaleList[n][t+1]
+                # a_num += a_num_n / P[n]
 
                 # numerator for B
-                b_num_n = np.zeros(shape=(self.M, K))
+                # b_num_n = np.zeros(shape=(self.M, K))
                 for i in range(self.M):
-                    for t in range(T):
-                        b_num_n[i, x[t]] += alphaList[n][t, i] * betaList[n][t, i]
-                b_num += b_num_n / P[n]
+                    for k in range(K):
+                        for t in range(T):
+                            if x[t] == k:
+                                b_num[i, k] += alphaList[n][t, i] * betaList[n][t, i]
+                # b_num += b_num_n / P[n]
             self.A = a_num / den1
             self.B = b_num / den2
 
@@ -121,16 +131,21 @@ class HMMDiscrete:
         :param X:
         :return:
         """
-        likelihoodList = []
+        # likelihoodList = []
         for x in X:
             T = len(x)
+            scale = np.zeros(T)
             alpha = np.zeros(shape=(T, self.M))
             alpha[0] = self.pi * self.B[:, x[0]]
+            scale[0] = alpha[0].sum()
+            alpha[0] /= scale[0]
             for t in range(1, T):
-                alpha[t] = alpha[t - 1].dot(self.A) * self.B[:, x[t]]
-            likelihood = alpha[-1].sum()
-            likelihoodList.append(likelihood)
-        return sum(np.log(likelihoodList))
+                alpha_t_prime = alpha[t-1].dot(self.A) * self.B[:, x[t]]
+                scale[t] = alpha_t_prime.sum()
+                alpha[t] = alpha_t_prime / scale[t]
+            # likelihood = alpha[-1].sum()
+            # likelihoodList.append(likelihood)
+        return sum(np.log(scale))
 
     def predict(self, x):
         """
