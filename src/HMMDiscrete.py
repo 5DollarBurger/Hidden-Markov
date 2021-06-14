@@ -12,36 +12,45 @@ class HMMDiscrete:
         using the Viterbi algorithm.
         :param M: Number of hidden states
         """
+        # check consistency
+        self._validateParams(pi=pi, A=A, B=B)
+
         np.random.seed(seed=123)
         self.pi = pi
         self.A = A
         self.B = B
-        # check consistency
-        assert len(pi) == len(A), "Number of states in pi and A do not match"
-        assert len(pi) == len(B), "Number of states in pi and B do not match"
 
         if len(pi) == 0:
             self.M = M
         else:
             self.M = len(pi)
 
+    def _validateParams(self, pi, A, B):
+        assert len(pi) == len(A), "Number of states in pi and A do not match"
+        assert len(pi) == len(B), "Number of states in pi and B do not match"
+        return True
+
     def _getRandomNormalized(self, shape):
         arr = np.random.random(shape)
         return arr / arr.sum(axis=1, keepdims=True)
+
+    def _getNumObsStates(self, X):
+        """
+        Infers number of possible observations in sequence from training data
+        """
+        K = max(max(seq) for seq in X) + 1
+        return K
 
     def _setInitialParams(self, K):
         self.pi = np.ones(self.M) / self.M
         self.A = self._getRandomNormalized(shape=(self.M, self.M))
         self.B = self._getRandomNormalized(shape=(self.M, K))
 
-    def _setParams(self, X, max_iter=30):
+    def _setParams(self, X, K, max_iter=30):
         # training data characteristics
-        K = max(max(seq) for seq in X) + 1
         N = len(X)
 
-        # initial HMM parameters
-        self._setInitialParams(K=K)
-
+        # update pi, A, B
         costList = []
         costDelta = np.inf
         for it in range(max_iter):
@@ -73,7 +82,7 @@ class HMMDiscrete:
                 betaList.append(beta)
 
             # assert (np.all(P > 0))
-            cost = np.sum(logP)
+            cost = -np.sum(logP)
             if it > 0:
                 costDelta = abs(cost - costList[-1])
             costList.append(cost)
@@ -121,7 +130,26 @@ class HMMDiscrete:
         return costList
 
     def fit(self, X):
-        costList = self._setParams(X)
+        """
+        Defines HMM parameters based on training data
+        """
+        K = self._getNumObsStates(X)
+
+        # initial HMM parameters
+        self._setInitialParams(K=K)
+
+        # update HMM parameters
+        costList = self._setParams(X=X, K=K)
+        return costList
+
+    def update(self, X):
+        """
+        Updates HMM parameters based on with new training data
+        """
+        K = len(self.B[0])
+
+        # update HMM parameters
+        costList = self._setParams(X=X, K=K)
         return costList
 
     def getLogLikelihood(self, X):
