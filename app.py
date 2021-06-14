@@ -7,7 +7,24 @@ app = Flask(__name__)
 @app.route("/train", methods=["GET", "POST"])
 def train():
     if request.method == "POST":
-        pass
+        inputDict = request.get_json()
+        M = np.array(inputDict["numHidSta"])
+        X = np.array(inputDict["seqList"])
+
+        ins = HMMDiscrete(M=M)
+        costList = ins.fit(X=X)
+
+        resp = {
+            "isValid": True,
+            "errorList": [],
+            "result": {
+                "initMat": ins.pi.tolist(),
+                "transMat": ins.A.tolist(),
+                "emitMat": ins.B.tolist(),
+                "costList": costList
+            }
+        }
+        return resp
 
     return "Welcome to Hidden Markovian Training."
 
