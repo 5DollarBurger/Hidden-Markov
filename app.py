@@ -11,14 +11,40 @@ def train():
 
     return "Welcome to Hidden Markovian Training."
 
+@app.route("/update", methods=["GET", "POST"])
+def update():
+    if request.method == "POST":
+        inputDict = request.get_json()
+        pi = np.array(inputDict["initMat"])
+        A = np.array(inputDict["transMat"])
+        B = np.array(inputDict["emitMat"])
+        X = np.array(inputDict["seqList"])
+
+        ins = HMMDiscrete(pi=pi, A=A, B=B)
+        costList = ins.update(X=X)
+
+        resp = {
+            "isValid": True,
+            "errorList": [],
+            "result": {
+                "initMat": ins.pi.tolist(),
+                "transMat": ins.A.tolist(),
+                "emitMat": ins.B.tolist(),
+                "costList": costList
+            }
+        }
+        return resp
+
+    return "Welcome to Hidden Markovian Updating."
+
 @app.route("/predict", methods=["GET", "POST"])
 def predict():
     if request.method == "POST":
         inputDict = request.get_json()
-        pi = np.array(inputDict["initialMat"])
-        A = np.array(inputDict["transitionMat"])
-        B = np.array(inputDict["emissionMat"])
-        x = np.array(inputDict["sequence"])
+        pi = np.array(inputDict["initMat"])
+        A = np.array(inputDict["transMat"])
+        B = np.array(inputDict["emitMat"])
+        x = np.array(inputDict["seq"])
 
         ins = HMMDiscrete(pi=pi, A=A, B=B)
         z = ins.predict(x=x)
