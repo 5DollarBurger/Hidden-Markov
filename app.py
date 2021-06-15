@@ -76,6 +76,27 @@ def predict():
 
     return "Welcome to Hidden Markovian Predictions."
 
+@app.route("/filter", methods=["GET", "POST"])
+def filter():
+    if request.method == "POST":
+        inputDict = request.get_json()
+        pi = np.array(inputDict["initMat"])
+        A = np.array(inputDict["transMat"])
+        B = np.array(inputDict["emitMat"])
+        x = np.array(inputDict["seq"])
+
+        ins = HMMDiscrete(pi=pi, A=A, B=B)
+        zProb = ins.filter(x=x)
+
+        resp = {
+            "isValid": True,
+            "errorList": [],
+            "result": zProb.tolist()
+        }
+        return resp
+
+    return "Welcome to Hidden Markovian Filtering."
+
 
 if __name__ == "__main__":
     app.run(debug=True, host='127.0.0.1', port=5000, threaded=True)
