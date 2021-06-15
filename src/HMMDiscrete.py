@@ -41,6 +41,20 @@ class HMMDiscrete:
         K = max(max(seq) for seq in X) + 1
         return K
 
+    def _getAlpha(self, x):
+        T = len(x)
+        scale = np.zeros(T)
+        alpha = np.zeros(shape=(T, self.M))
+        alpha[0] = self.pi * self.B[:, x[0]]
+        # perform scaling
+        scale[0] = alpha[0].sum()
+        alpha[0] /= scale[0]
+        for t in range(1, T):
+            alpha_t_prime = alpha[t-1].dot(self.A) * self.B[:, x[t]]
+            scale[t] = alpha_t_prime.sum()
+            alpha[t] = alpha_t_prime / scale[t]
+        return alpha, scale
+
     def _setInitialParams(self, K):
         self.pi = np.ones(self.M) / self.M
         self.A = self._getRandomNormalized(shape=(self.M, self.M))
@@ -61,16 +75,7 @@ class HMMDiscrete:
             for n in range(N):
                 x = X[n]
                 T = len(x)
-                scale = np.zeros(T)
-                alpha = np.zeros(shape=(T, self.M))
-                alpha[0] = self.pi * self.B[:, x[0]]
-                # perform scaling
-                scale[0] = alpha[0].sum()
-                alpha[0] /= scale[0]
-                for t in range(1, T):
-                    alpha_t_prime = alpha[t-1].dot(self.A) * self.B[:, x[t]]
-                    scale[t] = alpha_t_prime.sum()
-                    alpha[t] = alpha_t_prime / scale[t]
+                alpha, scale = self._getAlpha(x=x)
                 logP[n] = np.log(scale).sum()
                 alphaList.append(alpha)
                 scaleList.append(scale)
@@ -198,6 +203,14 @@ class HMMDiscrete:
             states[t] = psi[t+1, states[t+1]]
         return states
 
+    def filter(self, x):
+        """
+        Calculates the distribution of hidden states at time T
+        """
+        alpha, scale = self._getAlpha(x=x)
+        stateProb = alpha[-1] / sum(alpha[-1])
+        return stateProb
+
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
@@ -224,4 +237,6 @@ if __name__ == "__main__":
     ins.B = np.array([[0.6, 0.4], [0.3, 0.7]])
     print("Best state sequence for: \n", np.array(X[0]))
     print(ins.predict(x=X[0]))
+
+    print("Terminal state distribution: \n", ins.filter(x=X[0]))
 
