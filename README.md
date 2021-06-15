@@ -24,5 +24,8 @@ In this end point, the user already has an initial belief of the underlying HMM 
 ### Predict
 In this end point, the user already has the most updated belief on the underlying HMM structure and its parameters, and wants to find out the most likely sequence of underlying hidden states for a given observation.
 
+### Filter (TBD)
+In this end point, the user inputs a series of observations to a trained HMM, and obtains a distribution of hidden states at current time $T$.
+
 ### Generate (TBD)
 In this end point, the user randomly simulates hidden state sequences, obtaining a distribution of outcomes at every time step.
