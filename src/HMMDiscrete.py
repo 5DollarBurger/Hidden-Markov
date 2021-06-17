@@ -16,9 +16,9 @@ class HMMDiscrete:
         self._validateParams(pi=pi, A=A, B=B)
 
         np.random.seed(seed=123)
-        self.pi = pi
-        self.A = A
-        self.B = B
+        self.pi = np.array(pi)
+        self.A = np.array(A)
+        self.B = np.array(B)
 
         if len(pi) == 0:
             self.M = M
@@ -60,7 +60,7 @@ class HMMDiscrete:
         self.A = self._getRandomNormalized(shape=(self.M, self.M))
         self.B = self._getRandomNormalized(shape=(self.M, K))
 
-    def _setParams(self, X, K, max_iter=30):
+    def _setParams(self, X, K, max_iter=1000):
         # training data characteristics
         N = len(X)
 
@@ -73,7 +73,7 @@ class HMMDiscrete:
             scaleList = []
             logP = np.zeros(N)
             for n in range(N):
-                x = X[n]
+                x = np.array(X[n])
                 T = len(x)
                 alpha, scale = self._getAlpha(x=x)
                 logP[n] = np.log(scale).sum()
@@ -161,11 +161,10 @@ class HMMDiscrete:
         """
         Calculates log likelihood of observation sequence given the model
         parameters using the forward algorithm
-        :param X:
-        :return:
         """
         logLikelihoodList = []
         for x in X:
+            x = np.array(x)
             T = len(x)
             scale = np.zeros(T)
             alpha = np.zeros(shape=(T, self.M))
@@ -187,6 +186,7 @@ class HMMDiscrete:
         :param x: Observed sequence
         :return:
         """
+        x = np.array(x)
         T = len(x)
         delta = np.zeros(shape=(T, self.M))
         psi = np.zeros(shape=(T, self.M))
@@ -207,6 +207,7 @@ class HMMDiscrete:
         """
         Calculates the distribution of hidden states at time T
         """
+        x = np.array(x)
         alpha, scale = self._getAlpha(x=x)
         stateProb = alpha[-1] / sum(alpha[-1])
         return stateProb

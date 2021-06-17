@@ -8,8 +8,8 @@ app = Flask(__name__)
 def train():
     if request.method == "POST":
         inputDict = request.get_json()
-        M = np.array(inputDict["numHidSta"])
-        X = np.array(inputDict["seqList"])
+        M = inputDict["numHidSta"]
+        X = inputDict["seqList"]
 
         ins = HMMDiscrete(M=M)
         costList = ins.fit(X=X)
@@ -32,10 +32,10 @@ def train():
 def update():
     if request.method == "POST":
         inputDict = request.get_json()
-        pi = np.array(inputDict["initMat"])
-        A = np.array(inputDict["transMat"])
-        B = np.array(inputDict["emitMat"])
-        X = np.array(inputDict["seqList"])
+        pi = inputDict["initMat"]
+        A = inputDict["transMat"]
+        B = inputDict["emitMat"]
+        X = inputDict["seqList"]
 
         ins = HMMDiscrete(pi=pi, A=A, B=B)
         costList = ins.update(X=X)
@@ -58,10 +58,10 @@ def update():
 def predict():
     if request.method == "POST":
         inputDict = request.get_json()
-        pi = np.array(inputDict["initMat"])
-        A = np.array(inputDict["transMat"])
-        B = np.array(inputDict["emitMat"])
-        x = np.array(inputDict["seq"])
+        pi = inputDict["initMat"]
+        A = inputDict["transMat"]
+        B = inputDict["emitMat"]
+        x = inputDict["seq"]
 
         ins = HMMDiscrete(pi=pi, A=A, B=B)
         z = ins.predict(x=x)
@@ -80,10 +80,10 @@ def predict():
 def filter():
     if request.method == "POST":
         inputDict = request.get_json()
-        pi = np.array(inputDict["initMat"])
-        A = np.array(inputDict["transMat"])
-        B = np.array(inputDict["emitMat"])
-        x = np.array(inputDict["seq"])
+        pi = inputDict["initMat"]
+        A = inputDict["transMat"]
+        B = inputDict["emitMat"]
+        x = inputDict["seq"]
 
         ins = HMMDiscrete(pi=pi, A=A, B=B)
         zProb = ins.filter(x=x)
