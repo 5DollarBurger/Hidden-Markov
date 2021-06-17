@@ -60,7 +60,7 @@ class HMMDiscrete:
         self.A = self._getRandomNormalized(shape=(self.M, self.M))
         self.B = self._getRandomNormalized(shape=(self.M, K))
 
-    def _setParams(self, X, K, max_iter=30):
+    def _setParams(self, X, K, max_iter=1000):
         # training data characteristics
         N = len(X)
 
