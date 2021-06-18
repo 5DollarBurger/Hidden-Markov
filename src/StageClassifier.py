@@ -43,15 +43,21 @@ class StageClassifier:
         daysInStg = self.dayInd + 1 - sumDays
         return daysInStg / self.cropCal[self.stgInd]["days"]
 
-    def _getHiddenShiftDays(self, shiftHist):
-        ...
+    def getStageHist(self, stgShiftHist):
+        stgHist = {}
+        for ind in range(len(self.cropCal)):
+            stgHist[ind] = 0
 
-    def getStageHist(self, shiftHist, meanShift, stdShift):
-        ...
+        maxStgInd = len(self.cropCal) - 1
+        for stgShift, prob in stgShiftHist.items():
+            stg = min(max(self.stgInd + stgShift, 0), maxStgInd)
+            stgHist[stg] += prob
+        return stgHist
 
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+    import json
 
     cropCal = [
         {"stage": "seedling", "days": 28},
@@ -62,11 +68,11 @@ if __name__ == "__main__":
         {"stage": "maturity", "days": 14}
     ]
 
-    shiftHist = {
+    stgShiftHist = {
         -1: 0.08438500793171773,
         0: 0.9156149920682819,
         1: 2.3559965023904594e-16
     }
 
-    ins = StageClassifier(cropCal=cropCal, dayInd=13)
-    print(ins._getStageProgress())
+    ins = StageClassifier(cropCal=cropCal, dayInd=0)
+    print(json.dumps(ins.getStageHist(stgShiftHist=stgShiftHist), indent=4))
