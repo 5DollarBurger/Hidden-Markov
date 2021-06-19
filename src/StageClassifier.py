@@ -1,6 +1,3 @@
-import math
-
-
 class StageClassifier:
     def __init__(self, cropCal, weekInd):
         self.cropCal = cropCal
