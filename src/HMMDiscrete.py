@@ -66,6 +66,8 @@ class HMMDiscrete:
 
         # update pi, A, B
         costList = []
+        if N == 0:
+            return costList
         costDelta = np.inf
         for it in range(max_iter):
             alphaList = []
@@ -232,12 +234,12 @@ if __name__ == "__main__":
     print("pi:", ins.pi)
     print("LL:", ins.getLogLikelihood(X=X))
 
-    # try viterbi
-    ins.pi = np.array([0.5, 0.5])
-    ins.A = np.array([[0.1, 0.9], [0.8, 0.2]])
-    ins.B = np.array([[0.6, 0.4], [0.3, 0.7]])
-    print("Best state sequence for: \n", np.array(X[0]))
-    print(ins.predict(x=X[0]))
-
-    print("Terminal state distribution: \n", ins.filter(x=X[0]))
+    # # try viterbi
+    # ins.pi = np.array([0.5, 0.5])
+    # ins.A = np.array([[0.1, 0.9], [0.8, 0.2]])
+    # ins.B = np.array([[0.6, 0.4], [0.3, 0.7]])
+    # print("Best state sequence for: \n", np.array(X[0]))
+    # print(ins.predict(x=X[0]))
+    #
+    # print("Terminal state distribution: \n", ins.filter(x=X[0]))
 
