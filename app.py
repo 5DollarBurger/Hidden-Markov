@@ -1,6 +1,5 @@
-from flask import Flask, request, json
-import numpy as np
-from src.HMMDiscrete import HMMDiscrete
+from flask import Flask, request
+from src.HMMDNBC import HMMDNBC
 
 app = Flask(__name__)
 
@@ -11,7 +10,7 @@ def train():
         M = inputDict["numHidSta"]
         X = inputDict["seqList"]
 
-        ins = HMMDiscrete(M=M)
+        ins = HMMDNBC(M=M)
         costList = ins.fit(X=X)
 
         resp = {
@@ -20,7 +19,7 @@ def train():
             "result": {
                 "initMat": ins.pi.tolist(),
                 "transMat": ins.A.tolist(),
-                "emitMat": ins.B.tolist(),
+                "emitMat": [B.tolist() for B in ins.BList],
                 "costList": costList
             }
         }
@@ -37,7 +36,7 @@ def update():
         B = inputDict["emitMat"]
         X = inputDict["seqList"]
 
-        ins = HMMDiscrete(pi=pi, A=A, B=B)
+        ins = HMMDNBC(pi=pi, A=A, B=B)
         costList = ins.update(X=X)
 
         resp = {
@@ -46,7 +45,7 @@ def update():
             "result": {
                 "initMat": ins.pi.tolist(),
                 "transMat": ins.A.tolist(),
-                "emitMat": ins.B.tolist(),
+                "emitMat": [B.tolist() for B in ins.BList],
                 "costList": costList
             }
         }
@@ -63,7 +62,7 @@ def predict():
         B = inputDict["emitMat"]
         x = inputDict["seq"]
 
-        ins = HMMDiscrete(pi=pi, A=A, B=B)
+        ins = HMMDNBC(pi=pi, A=A, B=B)
         z = ins.predict(x=x)
 
         resp = {
@@ -85,7 +84,7 @@ def filter():
         B = inputDict["emitMat"]
         x = inputDict["seq"]
 
-        ins = HMMDiscrete(pi=pi, A=A, B=B)
+        ins = HMMDNBC(pi=pi, A=A, B=B)
         zProb = ins.filter(x=x)
 
         resp = {
