@@ -93,8 +93,25 @@ class HMMGMM:
                             B[j, t] += p
                 Bs.append(B)
 
-                alpha = np.zeros(shape=(T, self.M))
-                alpha[0] = self.pi * B[:, 0]
+                alpha = self._getAlpha(x=x, B=B)
+                P[n] = alpha[-1].sum()
+                assert P[n] <= 1
+                alphas.append(alpha)
+
+                beta = np.zeros(shape=(T, self.M))
+                beta[-1] = 1
+                for t in range(T-2, -1, -1):
+                    beta[t] = self.A.dot(B[:, t + 1] * beta[t + 1])
+                betas.append(beta)
+
+                gamma = np.zeros(shape=(T, self.M, self.K))
+                for t in range(T):
+                    alphabeta = (alphas[n][t, :] * betas[n][t, :]).sum()
+                    for j in range(self.M):
+                        factor = alphas[n][t, j] * betas[n][t, j] / alphabeta
+                        for k in range(self.K):
+                            gamma[t, j, k] = factor * component[j, k, t] / B[j, t]
+                gammas.append(gamma)
 
     def fit(self, X):
         """
