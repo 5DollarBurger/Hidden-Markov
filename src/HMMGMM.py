@@ -94,9 +94,12 @@ class HMMGMM:
                 Bs.append(B)
 
                 alpha = self._getAlpha(x=x, B=B)
+                alphas.append(alpha)
+
                 P[n] = alpha[-1].sum()
                 assert P[n] <= 1
-                alphas.append(alpha)
+                cost = np.log(P).sum()
+                costList.append(cost)
 
                 beta = np.zeros(shape=(T, self.M))
                 beta[-1] = 1
@@ -113,6 +116,65 @@ class HMMGMM:
                             gamma[t, j, k] = factor * component[j, k, t] / B[j, t]
                 gammas.append(gamma)
 
+            # now re-estimate pi, A, B
+            gen = ((alphas[n][0] * betas[n][0]) / P[n] for n in range(N))
+            self.pi = sum(gen) / N
+
+            a_den = np.zeros(shape=(self.M, 1))
+            a_num = 0
+            r_num = np.zeros(shape=(self.M, self.K))
+            r_den = np.zeros(shape=(self.M))
+            mu_num = np.zeros(shape=(self.M, self.K, self.D))
+            sigma_num = np.zeros(shape=(self.M, self.K, self.D, self.D))
+            for n in range(N):
+                x = X[n]
+                T = len(x)
+                B = Bs[n]
+
+                a_den += (alphas[n][:-1] * betas[n][:-1]).sum(axis=0, keepdims=True).T / P[n]
+
+                # numerator for A
+                a_num_n = np.zeros(shape=(self.M, self.M))
+                for i in range(self.M):
+                    for j in range(self.M):
+                        for t in range(T - 1):
+                            a_num[i, j] += np.sum(alphas[n][t, i] * self.A[i, j] * self.B[j, x[t + 1]] * betas[n][t + 1, j])
+                a_num += a_num_n / P[n]
+
+                # numerator for B
+                r_num_n = np.zeros(shape=(self.M, self.K))
+                r_den_n = np.zeros(shape=(self.M))
+                for j in range(self.M):
+                    for k in range(self.K):
+                        for t in range(T):
+                            if x[t] == k:
+                                r_num_n[j, k] += gamma[t, j, k]
+                                r_den_n[j] += gamma[t, j, k]
+                r_num += r_num_n / P[n]
+                r_den += r_den_n / P[n]
+
+                mu_num_n = np.zeros(shape=(self.M, self.K, self.D))
+                sigma_num_n = np.zeros(shape=(self.M, self.K, self.D, self.D))
+                for j in range(self.M):
+                    for k in range(self.K):
+                        for t in range(T):
+                            mu_num_n += gamma[t, j, k] * x[t]
+                            sigma_num_n += gamma[t, j, k] * np.outer(
+                                a=x[t] - self.mu[j, k],
+                                b=x[t] - self.mu[j, k]
+                            )
+                mu_num += mu_num_n / P[n]
+                sigma_num += sigma_num_n / P[n]
+
+            self.A = a_num / a_den
+            for j in range(self.M):
+                for k in range(self.K):
+                    self.R[j, k] = r_num[j, k] / r_den[j]
+                    self.mu[j, k] = mu_num[j, k] / r_num[j, k]
+                    self.sigma[j, k] = sigma_num[j, k] / r_num[j, k]
+
+        return costList
+
     def fit(self, X):
         """
         Defines HMM parameters based on training data
@@ -126,6 +188,8 @@ class HMMGMM:
 
         # update HMM parameters
         costList = self._setParams(X=X)
+
+        return costList
 
 
 if __name__ == "__main__":
