@@ -193,6 +193,8 @@ class HMMGMM:
 
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
     def simple_init():
         M = 1
         K = 1
@@ -207,7 +209,7 @@ if __name__ == "__main__":
     def big_init():
         M = 5
         K = 3
-        D = 3
+        D = 2
         pi = np.array([1, 0, 0, 0, 0])
         A = np.array([
             [0.9, 0.025, 0.025, 0.025, 0.025],
@@ -241,8 +243,14 @@ if __name__ == "__main__":
                                                  cov=sigma[s][r])
             for t in range(1, T):
                 s = np.random.choice(a=M, p=A[s])
-                r = np.random.choice(a=K, p=A[s])
+                r = np.random.choice(a=K, p=R[s])
                 x[t] = np.random.multivariate_normal(mean=mu[s][r],
                                                      cov=sigma[s][r])
             X.append(x)
         return X
+
+    T = 500
+    x = get_signals(N=1, T=T)[0]
+    axis = range(T)
+    plt.plot(axis, x[:, 0], axis, x[:, 1])
+    plt.show()
