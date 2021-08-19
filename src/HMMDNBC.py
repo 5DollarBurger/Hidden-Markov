@@ -274,6 +274,8 @@ class HMMDNBC:
         """
         Defines HMM parameters based on training data
         """
+        if len(X) == 0:
+            return []
         X = self._getFormattedX(X=X)
         self.L = len(X[0][0])
         KList = self._getKListFromX(X)
@@ -289,6 +291,8 @@ class HMMDNBC:
         """
         Updates HMM parameters based on with new training data
         """
+        if len(X) == 0:
+            return []
         self._validateModel()
         X = self._getFormattedX(X=X)
         self._validateXAgainstModel(X=X)
